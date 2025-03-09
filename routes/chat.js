@@ -4,6 +4,8 @@ const router = express.Router();
 
 let puterJwtToken = null;
 let traeApiToken = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjp7ImlkIjoiNzQ3NDA3MjE5MTUzNTEyMTQxMyIsInNvdXJjZSI6InJlZnJlc2hfdG9rZW4iLCJzb3VyY2VfaWQiOiI5c1dyeldPRU50UWNBRi1WTDVCQkxtSTlGR0hkZUhQZ0RKQmxXdTM1OTlFPS4xODJiMjU5ZjZlNzk0MzA5IiwidGVuYW50X2lkIjoiN28yZDg5NHA3ZHIwbzQiLCJ0eXBlIjoidXNlciJ9LCJleHAiOjE3NDE3ODYyNDcsImlhdCI6MTc0MTUyNzA0N30.kuuwZj8rYRm9djTb5iQzsMLWl-IXYmazXXsy0HKRIcYU8w15LDO8iaFP2gUGeqSPe0-RVVFH6tA9_EHiXBQLhROfSjruwrlm9wfE7oqeVXA1HK0aLIQlwMO6N7ksOACma-VJULWY8-KTiDvW-1hRvPW0fUDo7DM5fZPZKOBRPGQj9qrZdBpywT4yKmdGmiuJPQVJjI-6fqfnHapNwPr_VbgzjPqNeMQHTUa61Fh_KzIywwp6VzhkpZP7QiyeokHDzZJT9PBD1DGhGppK7Dc9dFxM2SBwJM4XptmEe9MIQYEGSAsOaIg05wzUY9Skh_lhwYB1i5cEUyGKkUMBWNULFYJWcJzqPVKzIL-Yf8TpNM40bp92fY5Ci2GKit4coHrUWMMXRSpYVKaU67RuueR_LvPdmwZNdpg4Jd2DjgLPqZoDmSLGdf8bwjfOiFpX2omZK0QNgh1JAXJjZFBZLv8O1bAJuoScDntZQb-egQOSETX1zxw0e73SCu07PpspQzF-tZQy9epDYLd6gSyJoFtPASr9dZWKq3r9dxCcKQG9Q2D_4qzkEozmCUUnVDvXwa1YCSJ7ooCxD6k-Uauzv5mIOiiOY2qg-rrl-Lr1_3SdMjRjKJcfPmsGY9a8HXL590GqRL62Yc9whwrxBZvq32ZSgMkDL1upOeQYzCLCT8NMnmA";
+let duckVqd = null;
+
 // jwt token for trae api (you can replace with your own, no login is required)
 async function generateJwtToken() {
   try {
@@ -42,9 +44,38 @@ async function generateJwtToken() {
   }
 }
 
+async function initDuckVqd() {
+  try {
+    console.log('Initializing DuckDuckGo VQD...');
+    const response = await axios({
+      method: 'get',
+      url: 'https://duckduckgo.com/duckchat/v1/status',
+      headers: {
+        'x-vqd-accept': '1',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36'
+      }
+    });
+    
+    if (response.headers && response.headers['x-vqd-4']) {
+      duckVqd = response.headers['x-vqd-4'];
+      console.log('DuckDuckGo VQD initialized successfully:', duckVqd);
+    } else {
+      console.error('VQD not found in response headers:', response.headers);
+    }
+  } catch (error) {
+    console.error('Error initializing DuckDuckGo VQD:', error.message);
+    if (error.response) {
+      console.error('Response data:', error.response.data);
+      console.error('Response status:', error.response.status);
+    }
+  }
+}
+
 generateJwtToken();
+initDuckVqd();
 
 setInterval(generateJwtToken, 12 * 60 * 60 * 1000);
+setInterval(initDuckVqd, 12 * 60 * 60 * 1000);
 
 async function usePuterAPI(userMessages, model) {
   const requestData = {
@@ -115,6 +146,119 @@ async function processPuterStream(stream) {
   });
 }
 
+async function useDuckAPI(userMessages, model) {
+  if (!duckVqd) {
+    await initDuckVqd();
+    if (!duckVqd) {
+      throw new Error('Failed to initialize DuckDuckGo VQD');
+    }
+  }
+  
+  let duckModel;
+  switch (model) {
+    case "claude-3-5-sonnet-20241022":
+      duckModel = "claude-3-haiku-20240307";
+      break;
+    case "claude-3-7-sonnet-latest":
+      duckModel = "gpt-4o-mini";
+      break;
+    case "gpt-4o-mini":
+      duckModel = "gpt-4o-mini";
+      break;
+    case "o3-mini":
+      duckModel = "o3-mini";
+      break;
+    case "claude-3-haiku":
+      duckModel = "claude-3-haiku-20240307";
+      break;
+    default:
+      duckModel = "claude-3-haiku-20240307";
+  }
+  
+  const messages = userMessages.filter(msg => msg.role !== 'system');
+  
+  const requestData = {
+    model: duckModel,
+    messages: messages
+  };
+  
+  const requestDataString = JSON.stringify(requestData);
+  console.log('Sending request to DuckDuckGo API:', requestDataString);
+  
+  const headers = {
+    'Content-Type': 'application/json',
+    'Content-Length': Buffer.byteLength(requestDataString),
+    'x-vqd-4': duckVqd,
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36'
+  };
+  
+  return await axios({
+    method: "post",
+    url: "https://duckduckgo.com/duckchat/v1/chat",
+    data: requestDataString,
+    responseType: "stream",
+    headers: headers,
+    timeout: 60000,
+    maxContentLength: Infinity,
+  });
+}
+
+async function processDuckStream(stream) {
+  return new Promise((resolve, reject) => {
+    let fullResponse = '';
+    let response = '';
+    let newVqd = '';
+    
+    stream.on('data', (chunk) => {
+      const chunkStr = chunk.toString();
+      console.log('Received Duck chunk:', chunkStr);
+      fullResponse += chunkStr;
+      
+      const lines = chunkStr.split('\n');
+      for (const line of lines) {
+        if (line.trim() && !line.includes('[DONE]')) {
+          if (line.startsWith('data: ')) {
+            try {
+              const jsonStr = line.substring(6);
+              const data = JSON.parse(jsonStr);
+              if (data.message !== undefined) {
+                response += data.message;
+              }
+            } catch (err) {
+              console.log('Error parsing Duck chunk JSON:', err);
+            }
+          }
+        }
+      }
+    });
+    
+    stream.on('end', () => {
+      console.log('Duck stream complete');
+      
+      if (stream.response && stream.response.headers && stream.response.headers['x-vqd-4']) {
+        newVqd = stream.response.headers['x-vqd-4'];
+        duckVqd = newVqd;
+        console.log('Updated Duck VQD:', newVqd);
+      }
+      
+      resolve({
+        model: 'DuckDuckGo AI',
+        content: response,
+        usage: {
+          prompt_tokens: 0,
+          completion_tokens: 0,
+          total_tokens: 0
+        }
+      });
+    });
+    
+    stream.on('error', (err) => {
+      console.error('Duck stream error:', err);
+      reject(err);
+    });
+  });
+}
+
 async function useTraeAPI(userMessages, model) {
   let modelName;
   
@@ -126,18 +270,28 @@ async function useTraeAPI(userMessages, model) {
     modelName = "claude3.5";
   }
   
+  const filteredMessages = userMessages.filter(msg => msg.role !== 'system');
+  
+  const lastUserMessage = filteredMessages.length > 0 ? 
+    filteredMessages[filteredMessages.length - 1].content : 
+    "Hello";
+  
+  const chatHistory = filteredMessages.length > 1 ? 
+    filteredMessages.slice(0, filteredMessages.length - 1).map(msg => ({
+      role: msg.role,
+      content: msg.content
+    })) : 
+    [];
+  
   const requestData = {
-    "user_input": userMessages[userMessages.length - 1].content,
+    "user_input": lastUserMessage,
     "intent_name": "general_qa_intent",
     "variables": "{\"locale\":\"en\"}",
     "context_resolvers": [{
       "resolver_id": "terminal_context",
       "variables": "{\"terminal_context\":[]}"
     }],
-    "chat_history": userMessages.slice(0, userMessages.length - 1).map(msg => ({
-      role: msg.role,
-      content: msg.content
-    })),
+    "chat_history": chatHistory,
     "session_id": "491292c5-d657-4ac8-9c18-e128ff5a156f",
     "generate_suggested_questions": false,
     "conversation_id": "c9d415be-1f77-49c6-a00e-71d9e72b1afa",
@@ -276,12 +430,21 @@ router.post('/v1/chat/completions', async (req, res) => {
   try {
     console.log('Received request:', JSON.stringify(req.body, null, 2));
     
-    if (!puterJwtToken) {
+    if (!puterJwtToken && !req.body.source !== "duckai") {
       console.log('No JWT token available, attempting to generate one...');
       await generateJwtToken();
-      if (!puterJwtToken) {
+      if (!puterJwtToken && !req.body.source !== "duckai") {
         console.error('Failed to generate JWT token');
         return res.status(500).json({ error: 'Failed to authenticate with Puter API' });
+      }
+    }
+    
+    if (req.body.source === "duckai" && !duckVqd) {
+      console.log('No Duck VQD available, attempting to initialize one...');
+      await initDuckVqd();
+      if (!duckVqd) {
+        console.error('Failed to initialize Duck VQD');
+        return res.status(500).json({ error: 'Failed to initialize DuckDuckGo API' });
       }
     }
 
@@ -301,24 +464,38 @@ router.post('/v1/chat/completions', async (req, res) => {
         content: msg.content
       }));
       
-      const hasSystemMessage = userMessages.some(msg => msg.role === 'system');
-      
-      if (!hasSystemMessage) {
-        userMessages.unshift(systemPrompt);
+      if (source === "puter") {
+        const hasSystemMessage = userMessages.some(msg => msg.role === 'system');
+        
+        if (!hasSystemMessage) {
+          userMessages.unshift(systemPrompt);
+        }
       }
       
       console.log('Processed messages:', JSON.stringify(userMessages, null, 2));
     } else {
-      userMessages = [systemPrompt];
+      userMessages = source === "puter" ? [systemPrompt] : [];
     }
     
     if (req.body && req.body.model) {
       console.log('Model requested:', req.body.model);
-      if (req.body.model === "claude3.5") {
-        model = "claude-3-5-sonnet-20241022";
-      } else if (req.body.model === "claude3.7") {
-        model = "claude-3-7-sonnet-latest";
+      
+      if (source === "duckai") {
+        if (["gpt-4o-mini", "o3-mini", "claude-3-haiku"].includes(req.body.model)) {
+          model = req.body.model;
+        } else if (req.body.model === "claude3.5") {
+          model = "claude-3-haiku";
+        } else if (req.body.model === "claude3.7") {
+          model = "gpt-4o-mini";
+        }
+      } else {
+        if (req.body.model === "claude3.5") {
+          model = "claude-3-5-sonnet-20241022";
+        } else if (req.body.model === "claude3.7") {
+          model = "claude-3-7-sonnet-latest";
+        }
       }
+      
       console.log('Using model:', model);
     }
 
@@ -331,6 +508,11 @@ router.post('/v1/chat/completions', async (req, res) => {
         console.log('Using Trae API as source');
         response = await useTraeAPI(userMessages, model);
         const result = await processTraeEventStream(response.data);
+        return res.json(result);
+      } else if (source === "duckai") {
+        console.log('Using DuckDuckGo API as source');
+        response = await useDuckAPI(userMessages, model);
+        const result = await processDuckStream(response.data);
         return res.json(result);
       } else {
         console.log('Using Puter API as source');
@@ -379,7 +561,15 @@ router.post('/v1/chat/completions', async (req, res) => {
     } catch (apiErr) {
       console.error('Primary API failed, trying fallback:', apiErr.message);
       
-      const fallbackSource = source === "trae" ? "puter" : "trae";
+      let fallbackSource;
+      if (source === "duckai") {
+        fallbackSource = "puter";
+      } else if (source === "trae") {
+        fallbackSource = "puter";
+      } else {
+        fallbackSource = "trae";
+      }
+      
       console.log(`Trying fallback source: ${fallbackSource}`);
       
       try {
@@ -388,6 +578,10 @@ router.post('/v1/chat/completions', async (req, res) => {
         if (fallbackSource === "trae") {
           response = await useTraeAPI(userMessages, model);
           const result = await processTraeEventStream(response.data);
+          return res.json(result);
+        } else if (fallbackSource === "duckai") {
+          response = await useDuckAPI(userMessages, model);
+          const result = await processDuckStream(response.data);
           return res.json(result);
         } else {
           response = await usePuterAPI(userMessages, model);

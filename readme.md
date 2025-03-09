@@ -74,6 +74,9 @@ Feel free to make a contribution by submitting a pull request.
 
 For more detailed documentation, visit: [sonnetapi](https://sonnetapi.andresdev.org)
 
+# Credits
+Credit is not needed, but wanted.
+
 ## License
 
 This project is licensed under the [MIT License](LICENSE).

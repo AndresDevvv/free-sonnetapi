@@ -14,7 +14,7 @@ A simple API that provides access to Claude 3.5 and Claude 3.7 models through Pu
 
 ```bash
 git clone https://github.com/andresdevvv/free-sonnetapi.git
-cd sonnetapi
+cd free-sonnetapi
 npm install
 ```
 

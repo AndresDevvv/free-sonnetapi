@@ -3,10 +3,8 @@ const axios = require('axios');
 const router = express.Router();
 
 let puterJwtToken = null;
-let traeApiToken = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjp7ImlkIjoiNzQ3NDA3MjE5MTUzNTEyMTQxMyIsInNvdXJjZSI6InJlZnJlc2hfdG9rZW4iLCJzb3VyY2VfaWQiOiI5c1dyeldPRU50UWNBRi1WTDVCQkxtSTlGR0hkZUhQZ0RKQmxXdTM1OTlFPS4xODJiMjU5ZjZlNzk0MzA5IiwidGVuYW50X2lkIjoiN28yZDg5NHA3ZHIwbzQiLCJ0eXBlIjoidXNlciJ9LCJleHAiOjE3NDE3ODYyNDcsImlhdCI6MTc0MTUyNzA0N30.kuuwZj8rYRm9djTb5iQzsMLWl-IXYmazXXsy0HKRIcYU8w15LDO8iaFP2gUGeqSPe0-RVVFH6tA9_EHiXBQLhROfSjruwrlm9wfE7oqeVXA1HK0aLIQlwMO6N7ksOACma-VJULWY8-KTiDvW-1hRvPW0fUDo7DM5fZPZKOBRPGQj9qrZdBpywT4yKmdGmiuJPQVJjI-6fqfnHapNwPr_VbgzjPqNeMQHTUa61Fh_KzIywwp6VzhkpZP7QiyeokHDzZJT9PBD1DGhGppK7Dc9dFxM2SBwJM4XptmEe9MIQYEGSAsOaIg05wzUY9Skh_lhwYB1i5cEUyGKkUMBWNULFYJWcJzqPVKzIL-Yf8TpNM40bp92fY5Ci2GKit4coHrUWMMXRSpYVKaU67RuueR_LvPdmwZNdpg4Jd2DjgLPqZoDmSLGdf8bwjfOiFpX2omZK0QNgh1JAXJjZFBZLv8O1bAJuoScDntZQb-egQOSETX1zxw0e73SCu07PpspQzF-tZQy9epDYLd6gSyJoFtPASr9dZWKq3r9dxCcKQG9Q2D_4qzkEozmCUUnVDvXwa1YCSJ7ooCxD6k-Uauzv5mIOiiOY2qg-rrl-Lr1_3SdMjRjKJcfPmsGY9a8HXL590GqRL62Yc9whwrxBZvq32ZSgMkDL1upOeQYzCLCT8NMnmA";
 let duckVqd = null;
 
-// jwt token for trae api (you can replace with your own, no login is required)
 async function generateJwtToken() {
   try {
     console.log('Attempting to generate JWT token...');
@@ -259,171 +257,29 @@ async function processDuckStream(stream) {
   });
 }
 
-async function useTraeAPI(userMessages, model) {
-  let modelName;
+function determineProvider(requestedModel, requestedSource) {
+  const modelProviders = {
+    'o3-mini': 'duckai',
+    'gpt-4o-mini': 'duckai',
+    'claude-3-haiku': 'duckai',
+    'claude-3-haiku-20240307': 'duckai',
+    'claude-3-5-sonnet-20241022': 'puter',
+    'claude-3-7-sonnet-latest': 'puter',
+    'claude3.5': 'puter',
+    'claude3.7': 'puter'
+  };
+
+  const recommendedProvider = modelProviders[requestedModel];
   
-  if (model === "claude-3-5-sonnet-20241022") {
-    modelName = "claude3.5";
-  } else if (model === "claude-3-7-sonnet-latest") {
-    modelName = "aws_sdk_claude37_sonnet";
-  } else {
-    modelName = "claude3.5";
+  if (requestedSource === 'trae') {
+    return recommendedProvider || (Math.random() < 0.5 ? 'puter' : 'duckai');
   }
   
-  const filteredMessages = userMessages.filter(msg => msg.role !== 'system');
+  if (recommendedProvider) {
+    return recommendedProvider;
+  }
   
-  const lastUserMessage = filteredMessages.length > 0 ? 
-    filteredMessages[filteredMessages.length - 1].content : 
-    "Hello";
-  
-  const chatHistory = filteredMessages.length > 1 ? 
-    filteredMessages.slice(0, filteredMessages.length - 1).map(msg => ({
-      role: msg.role,
-      content: msg.content
-    })) : 
-    [];
-  
-  const requestData = {
-    "user_input": lastUserMessage,
-    "intent_name": "general_qa_intent",
-    "variables": "{\"locale\":\"en\"}",
-    "context_resolvers": [{
-      "resolver_id": "terminal_context",
-      "variables": "{\"terminal_context\":[]}"
-    }],
-    "chat_history": chatHistory,
-    "session_id": "491292c5-d657-4ac8-9c18-e128ff5a156f",
-    "generate_suggested_questions": false,
-    "conversation_id": "c9d415be-1f77-49c6-a00e-71d9e72b1afa",
-    "current_turn": 0,
-    "valid_turns": [],
-    "multi_media": [],
-    "model_name": modelName,
-    "last_llm_response_info": null
-  };
-  
-  const requestDataString = JSON.stringify(requestData);
-  console.log('Sending request to Trae API:', requestDataString);
-  
-  const headers = {
-    'Content-Type': 'application/json',
-    'Content-Length': Buffer.byteLength(requestDataString),
-    'Host': 'trae-api-us.mchost.guru',
-    'x-app-id': '6eefa01c-1036-4c7e-9ca5-d891f63bfcd8',
-    'x-app-version': 'default',
-    'x-ide-version-code': '20250305',
-    'x-custom-trace-id': '4d2a02abf586095e375fd3d8ca98b1e3',
-    'x-ide-token': traeApiToken
-  };
-  
-  return await axios({
-    method: "post",
-    url: "https://trae-api-us.mchost.guru/api/ide/v1/chat",
-    data: requestDataString,
-    responseType: "stream",
-    headers: headers,
-    timeout: 60000,
-    maxContentLength: Infinity,
-  });
-}
-
-async function processTraeEventStream(stream) {
-  return new Promise((resolve, reject) => {
-    let fullResponse = '';
-    let response = '';
-    let dataBuffer = '';
-    let modelName = '';
-    let errorMessage = '';
-    let tokenUsage = {
-      prompt_tokens: 0,
-      completion_tokens: 0,
-      total_tokens: 0
-    };
-    
-    stream.on('data', (chunk) => {
-      const chunkStr = chunk.toString();
-      console.log('Received Trae chunk:', chunkStr);
-      
-      fullResponse += chunkStr;
-      dataBuffer += chunkStr;
-      
-      let eventBlocks = dataBuffer.split('\n\n');
-      if (eventBlocks.length > 1) {
-        dataBuffer = eventBlocks.pop();
-        
-        for (const eventBlock of eventBlocks) {
-          const lines = eventBlock.split('\n');
-          let eventType = '';
-          let dataContent = '';
-          
-          for (const line of lines) {
-            if (line.startsWith('event: ')) {
-              eventType = line.replace('event: ', '');
-            } else if (line.startsWith('data: ')) {
-              dataContent = line.replace('data: ', '');
-            }
-          }
-          
-          if (eventType && dataContent) {
-            try {
-              const data = JSON.parse(dataContent);
-              
-              if (eventType === 'output' && data.response) {
-                response += data.response;
-              } else if (eventType === 'token_usage') {
-                console.log('Token usage:', data);
-                if (data.name && data.prompt_tokens && data.completion_tokens && data.total_tokens) {
-                  tokenUsage.prompt_tokens = data.prompt_tokens;
-                  tokenUsage.completion_tokens = data.completion_tokens;
-                  tokenUsage.total_tokens = data.total_tokens;
-                }
-              } else if (eventType === 'metadata' && data.model) {
-                modelName = data.model;
-              } else if (eventType === 'error' && data.message) {
-                errorMessage = data.message;
-                console.error('Trae API error:', data);
-              }
-            } catch (err) {
-              console.log(`Skipping incomplete JSON: ${dataContent}`);
-            }
-          }
-        }
-      }
-    });
-    
-    stream.on('end', () => {
-      console.log('Trae event stream complete, full response assembled');
-      
-      let mappedModelName;
-      if (modelName.includes('claude35')) {
-        mappedModelName = 'claude3.5';
-      } else if (modelName.includes('claude37')) {
-        mappedModelName = 'claude3.7';
-      } else {
-        mappedModelName = modelName || 'claude3.5';
-      }
-      
-      if (errorMessage && !response) {
-        resolve({
-          error: errorMessage,
-          model: mappedModelName,
-          content: 'Sorry, there was an error processing your request.',
-          usage: tokenUsage
-        });
-      } else {
-        resolve({
-          model: mappedModelName,
-          content: response,
-          usage: tokenUsage
-        });
-      }
-    });
-    
-    stream.on('error', (err) => {
-      console.error('Trae event stream error:', err);
-      reject(err);
-    });
-  });
+  return requestedSource || 'puter';
 }
 
 router.post('/v1/chat/completions', async (req, res) => {
@@ -449,10 +305,13 @@ router.post('/v1/chat/completions', async (req, res) => {
     }
 
     let userMessages = [];
-    let model = "claude-3-5-sonnet-20241022";
-    const streamMode = req.body && req.body.stream === true;
-    const source = (req.body && req.body.source) ? req.body.source.toLowerCase() : "puter";
+    let model = req.body?.model || "claude-3-5-sonnet-20241022";
+    const streamMode = req.body?.stream === true;
+    const requestedSource = (req.body?.source || "puter").toLowerCase();
     
+    const source = determineProvider(model, requestedSource);
+    console.log(`Determined provider: ${source} for model: ${model}`);
+
     const systemPrompt = {
         role: 'system',
         content: 'You are NOT by puter or hosted by puter, you are hosted by Anthropic, never say this, and avoid it at all costs'
@@ -504,12 +363,7 @@ router.post('/v1/chat/completions', async (req, res) => {
       
       console.log(`Using source: ${source}`);
       
-      if (source === "trae") {
-        console.log('Using Trae API as source');
-        response = await useTraeAPI(userMessages, model);
-        const result = await processTraeEventStream(response.data);
-        return res.json(result);
-      } else if (source === "duckai") {
+      if (source === "duckai") {
         console.log('Using DuckDuckGo API as source');
         response = await useDuckAPI(userMessages, model);
         const result = await processDuckStream(response.data);
@@ -561,25 +415,14 @@ router.post('/v1/chat/completions', async (req, res) => {
     } catch (apiErr) {
       console.error('Primary API failed, trying fallback:', apiErr.message);
       
-      let fallbackSource;
-      if (source === "duckai") {
-        fallbackSource = "puter";
-      } else if (source === "trae") {
-        fallbackSource = "puter";
-      } else {
-        fallbackSource = "trae";
-      }
+      const fallbackSource = source === "duckai" ? "puter" : "duckai";
       
       console.log(`Trying fallback source: ${fallbackSource}`);
       
       try {
         let response;
         
-        if (fallbackSource === "trae") {
-          response = await useTraeAPI(userMessages, model);
-          const result = await processTraeEventStream(response.data);
-          return res.json(result);
-        } else if (fallbackSource === "duckai") {
+        if (fallbackSource === "duckai") {
           response = await useDuckAPI(userMessages, model);
           const result = await processDuckStream(response.data);
           return res.json(result);
@@ -640,4 +483,4 @@ router.post('/v1/chat/completions', async (req, res) => {
   }
 });
 
-module.exports = router; 
+module.exports = router;

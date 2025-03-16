@@ -4,12 +4,12 @@
 [![Node.js](https://img.shields.io/badge/Node.js-43853D?style=flat&logo=node.js&logoColor=white)](https://nodejs.org/)
 [![Express.js](https://img.shields.io/badge/Express.js-404D59?style=flat)](https://expressjs.com/)
 
-A powerful and lightweight API that provides seamless access to Claude 3.5 and Claude 3.7 models through multiple backends (Puter.com and Trae IDE), featuring an OpenAI-compatible interface.
+A powerful and lightweight API that provides seamless access to Claude 3.5 and Claude 3.7 models through multiple backends (Puter.com and DuckAI IDE), featuring an OpenAI-compatible interface.
 
 ## ✨ Features
 
 - **Multiple Models**: Support for both Claude 3.5 Sonnet and Claude 3.7 Sonnet
-- **Backend Flexibility**: Automatic fallback between Puter.com and Trae IDE backends
+- **Backend Flexibility**: Automatic fallback between Puter.com and DuckAI backends
 - **OpenAI Compatibility**: Drop-in replacement for OpenAI API calls
 - **Streaming Support**: Real-time response streaming capability
 - **Zero Configuration**: No API keys or complex setup required
@@ -79,7 +79,7 @@ const response = await fetch('http://localhost:3032/v1/chat/completions', {
       }
     ],
     stream: true,  // Enable streaming responses
-    source: "trae" // Explicitly select backend source
+    source: "duckai" // Explicitly select backend source
   })
 });
 ```

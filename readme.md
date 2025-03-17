@@ -4,7 +4,7 @@
 [![Node.js](https://img.shields.io/badge/Node.js-43853D?style=flat&logo=node.js&logoColor=white)](https://nodejs.org/)
 [![Express.js](https://img.shields.io/badge/Express.js-404D59?style=flat)](https://expressjs.com/)
 
-A powerful and lightweight API that provides seamless access to Claude 3.5 and Claude 3.7 models through multiple backends (Puter.com and DuckAI IDE), featuring an OpenAI-compatible interface.
+A powerful and lightweight API that provides seamless access to Claude 3.5 and Claude 3.7 models through multiple backends (Puter.com and DuckAI), featuring an OpenAI-compatible interface.
 
 ## ✨ Features
 
